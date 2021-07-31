@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Major Project</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+</head>
+
+<body>
+
+    <div class="left">
+        <img src="/camera">
+        <canvas id="map"></canvas>
+    </div>
+
+    <div class="right">
+        <div class="manual">
+            <h2>Manual Control</h2>
+            <input type="checkbox" name="switch" id="switch">
+            <label for="switch"></label>
+
+            <div class="controls">
+                <div class="dpad">
+                    <div class="grid">
+                        <div class="row">
+                            <div class="col"></div>
+                            <div class="col"><img src="/static/images/up.svg" alt="Up Arrow"></div>
+                            <div class="col"></div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col"><img style="transform: rotate(270deg);" src="/static/images/up.svg"
+                                    alt="Left Arrow"></div>
+                            <div class="col"><img src="/static/images/halt.svg" alt="Halt"></div>
+                            <div class="col"><img style="transform: rotate(90deg);" src="/static/images/up.svg"
+                                    alt="Right Arrow"></div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col"><img src="/static/images/drl.svg" alt="DRL"></div>
+                            <div class="col"><img style="transform: rotate(180deg);" src="/static/images/up.svg"
+                                    alt="Down Arrow"></div>
+                            <div class="col"><img src="/static/images/dip.svg" alt="Dipper"></div>
+                        </div>
+                    </div>
+                    <div class="bg"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

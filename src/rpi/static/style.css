@@ -1,0 +1,169 @@
+body {
+  height: 100vh;
+  margin: 0;
+  font-family: sans-serif;
+  overflow-x: hidden;
+  display: -ms-grid;
+  display: grid;
+  -ms-grid-columns: 65% auto;
+      grid-template-columns: 65% auto;
+}
+
+.left, .right {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  padding: 1em;
+}
+
+.left img {
+  width: 100%;
+  height: -webkit-fit-content;
+  height: -moz-fit-content;
+  height: fit-content;
+  border-radius: 10px;
+}
+
+.left canvas {
+  margin-top: 1em;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  background: #aaa;
+}
+
+.right {
+  z-index: 1;
+}
+
+.manual {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+          flex-direction: column;
+  min-height: 10vh;
+  -webkit-box-pack: start;
+      -ms-flex-pack: start;
+          justify-content: flex-start;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  background-color: #e8f5f7;
+  border-radius: 10px;
+  padding: 1em;
+  z-index: -2;
+}
+
+.manual h2 {
+  position: absolute;
+  top: 0.5em;
+  color: #243d42;
+}
+
+input[type="checkbox"] {
+  top: 2em;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  z-index: 2;
+}
+
+label {
+  width: 16em;
+  height: 5em;
+  background-color: #477a85;
+  border-radius: 100px;
+  position: relative;
+  top: 2em;
+  cursor: pointer;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  -webkit-box-shadow: 0 0 20px #477a8550;
+          box-shadow: 0 0 20px #477a8550;
+  z-index: 2;
+}
+
+label::after {
+  content: "";
+  width: 4.5em;
+  height: 4.5em;
+  background-color: #e8f5f7;
+  position: absolute;
+  border-radius: 70px;
+  top: 0.25em;
+  left: 0.25em;
+  -webkit-transition: 0.5s;
+  transition: 0.5s;
+  z-index: 2;
+}
+
+input:checked + label:after {
+  left: calc(100% - 0.25em);
+  -webkit-transform: translateX(-100%);
+          transform: translateX(-100%);
+}
+
+input:checked + label {
+  background-color: #243d42;
+}
+
+label:active:after {
+  width: 160px;
+}
+
+.controls {
+  width: 100%;
+  background: #243d4220;
+  position: relative;
+  top: -0.5em;
+  z-index: -1;
+  display: none;
+  border-radius: 10px;
+  padding-top: 4em;
+}
+
+.controls .dpad .bg {
+  width: 100%;
+  height: 0;
+  padding-top: 100%;
+}
+
+.controls .grid {
+  position: absolute;
+  width: 100%;
+  height: calc(100% - 5em);
+}
+
+.controls .grid .row {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  height: 33.33%;
+  -webkit-box-orient: horizontal;
+  -webkit-box-direction: normal;
+      -ms-flex-direction: row;
+          flex-direction: row;
+}
+
+.controls .grid .row .col {
+  height: 100%;
+  width: 33.33%;
+  overflow: hidden;
+  padding: 1em;
+}
+
+.controls .grid .row .col img {
+  width: 100%;
+}
+
+input:checked + * + .controls {
+  display: block;
+}
+/*# sourceMappingURL=style.css.map */
