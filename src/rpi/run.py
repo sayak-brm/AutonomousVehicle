@@ -28,12 +28,16 @@ if not simulation:
     I2C = I2CIO(0x01)
 APP.config["DEBUG"] = True
 
+spmat = SparseMatrix(0.5)
+x, y, t = 40, 40, 0
+running = True
+
 opts = ""
 with open("src/rpi/params.json") as params:
     opts = json.loads(params.read())
 
 
-def map_data(data, spmat, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
+def map_data(data, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
     v = spmat.get(Ox//scale, Oy//scale)/2
     spmat.update(Ox//scale, Oy//scale, v)
     for r, t in data:
@@ -48,7 +52,6 @@ def map_data(data, spmat, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
             y = r * np.sin(t + np.radians(Ot))
             v = spmat.get((Ox+x)//scale, (Oy+y)//scale)/2 + 0.5
             spmat.update((Ox+x)//scale, (Oy+y)//scale, v)
-    return spmat
 
 
 def draw_rect(screen, map_x, map_y, col, scale=10):
@@ -58,10 +61,7 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 
 
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
-    spmat = SparseMatrix(0.5)
-    x, y, t = 60, 40, 60
-    running = True
-
+    global running, x, y, t
     while running:
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -84,8 +84,7 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
             lidar_data = lidar.get_data()
         else:
             lidar_data = lidar.get_data(x, y, t)
-        spmat = map_data(lidar_data, spmat, x, y, t,
-                         max_dist=100, scale=map_scale)
+        map_data(lidar_data, x, y, t, max_dist=100, scale=map_scale)
 
         w, h = screen.get_size()
         c_x = w//disp_scale//2
@@ -183,5 +182,6 @@ def init_lidar():
 if __name__ == "__main__":
     server = threading.Thread(target=init_lidar)
     server.start()
-    APP.run(port="8500", host="0.0.0.0")
+    APP.run(port="8500", host="0.0.0.0", use_reloader=False)
+    running = False
     server.join()
