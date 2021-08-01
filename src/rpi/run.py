@@ -4,14 +4,23 @@ from flask_restful import Resource
 from flask_restful import Api
 from flask import Flask, render_template, Response
 import json
+import matplotlib.image as img
+import numpy as np
+import pygame
+from pygame import gfxdraw
+import threading
+
+from sparse_matrix import SparseMatrix
 
 simulation = True
 
 if not simulation:
     from rpi_camera import Camera
+    from sensors.simulated_lidar import SimulatedLidar as Lidar
     from i2cio import I2CIO
 else:
     from sim_camera import Camera
+    from sensors.simulated_lidar import SimulatedLidar as Lidar
 
 APP = Flask(__name__, template_folder='web', static_folder='static')
 API = Api(APP)
@@ -24,7 +33,80 @@ with open("src/rpi/params.json") as params:
     opts = json.loads(params.read())
 
 
-class Drive(Resource):
+def map_data(data, spmat, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
+    v = spmat.get(Ox//scale, Oy//scale)/2
+    spmat.update(Ox//scale, Oy//scale, v)
+    for r, t in data:
+        for i in range(int(r)):
+            if i < max_dist:
+                x = i * np.cos(t + np.radians(Ot))
+                y = i * np.sin(t + np.radians(Ot))
+                v = spmat.get((Ox+x)//scale, (Oy+y)//scale)/2
+                spmat.update((Ox+x)//scale, (Oy+y)//scale, v)
+        if r < max_dist:
+            x = r * np.cos(t + np.radians(Ot))
+            y = r * np.sin(t + np.radians(Ot))
+            v = spmat.get((Ox+x)//scale, (Oy+y)//scale)/2 + 0.5
+            spmat.update((Ox+x)//scale, (Oy+y)//scale, v)
+    return spmat
+
+
+def draw_rect(screen, map_x, map_y, col, scale=10):
+    for i in range(scale):
+        for j in range(scale):
+            gfxdraw.pixel(screen, map_x*scale+i, map_y*scale+j, col)
+
+
+def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
+    spmat = SparseMatrix(0.5)
+    x, y, t = 60, 40, 60
+    running = True
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_a:
+                    x -= map_scale
+                if event.key == pygame.K_d:
+                    x += map_scale
+                if event.key == pygame.K_w:
+                    y -= map_scale
+                if event.key == pygame.K_s:
+                    y += map_scale
+                if event.key == pygame.K_q:
+                    t -= map_scale
+                if event.key == pygame.K_e:
+                    t += map_scale
+            if event.type == pygame.QUIT:
+                running = False
+
+        if not simulation:
+            lidar_data = lidar.get_data()
+        else:
+            lidar_data = lidar.get_data(x, y, t)
+        spmat = map_data(lidar_data, spmat, x, y, t,
+                         max_dist=100, scale=map_scale)
+
+        w, h = screen.get_size()
+        c_x = w//disp_scale//2
+        c_y = h//disp_scale//2
+        b_x = c_x - x//map_scale
+        b_y = c_y - y//map_scale
+
+        screen.fill((127, 127, 127))
+
+        for map_x in spmat.head.keys():
+            for map_y in spmat.head[map_x].keys():
+                col = int(255*(1-spmat.head[map_x][map_y]))
+                draw_rect(screen, int(map_x + b_x), int(map_y + b_y),
+                          (col, col, col), scale=disp_scale)
+
+        draw_rect(screen, c_x, c_y, (0, 255, 0), scale=disp_scale)
+
+        pygame.display.flip()
+
+
+""" class Drive(Resource):
     @staticmethod
     def post(direction):
         if direction in opts["dirs"]:
@@ -59,7 +141,7 @@ class Gears(Resource):
 
 API.add_resource(Drive, "/api/drive/<direction>")
 API.add_resource(Lights, "/api/lights/<light>/<state>")
-API.add_resource(Gears, "/api/gear/<number>")
+API.add_resource(Gears, "/api/gear/<number>") """
 
 
 @APP.route('/')
@@ -80,5 +162,26 @@ def camera():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+def init_lidar():
+    if not simulation:
+        lidar = Lidar()
+    else:
+        map_image = img.imread("src/rpi/sensors/maps/1.png")[:, :, 0]
+        lidar = Lidar(map_image)
+
+    lidar.start_scanning()
+
+    pygame.init()
+    screen = pygame.display.set_mode((720, 720), pygame.RESIZABLE)
+
+    run_lidar(lidar, screen)
+
+    lidar.stop_scanning()
+    lidar.close()
+
+
 if __name__ == "__main__":
+    server = threading.Thread(target=init_lidar)
+    server.start()
     APP.run(port="8500", host="0.0.0.0")
+    server.join()
