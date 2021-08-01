@@ -1,6 +1,6 @@
 import numpy as np
 
-from dummy_lidar import DummyLidar
+from sensors.dummy_lidar import DummyLidar
 
 
 class SimulatedLidar(DummyLidar):
