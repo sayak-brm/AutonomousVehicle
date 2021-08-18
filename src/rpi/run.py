@@ -31,6 +31,9 @@ APP.config["DEBUG"] = True
 spmat = SparseMatrix(0.5)
 x, y, t = 40, 40, 0
 running = True
+map_scale = 3
+disp_scale = 10
+manual_dir = "stop"
 
 opts = ""
 with open("src/rpi/params.json") as params:
@@ -63,6 +66,16 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
     global running, x, y, t
     while running:
+        if manual_dir != "stop":
+            if manual_dir == "left":
+                x -= map_scale
+            if manual_dir == "right":
+                x += map_scale
+            if manual_dir == "front":
+                y -= map_scale
+            if manual_dir == "back":
+                y += map_scale
+
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_a:
@@ -143,6 +156,22 @@ API.add_resource(Lights, "/api/lights/<light>/<state>")
 API.add_resource(Gears, "/api/gear/<number>") """
 
 
+class Drive(Resource):
+    @staticmethod
+    def post(direction):
+        global manual_dir
+        if direction in opts["dirs"]:
+            if not simulation:
+                I2C.send_write([6, opts["dirs"][direction]])
+            manual_dir = direction
+            return {"success": True}
+        print("ERR: Incorrect Drive Direction")
+        return {"success": False}
+
+
+API.add_resource(Drive, "/api/drive/<direction>")
+
+
 @APP.route('/')
 def index():
     return render_template('index.html')
@@ -173,7 +202,7 @@ def init_lidar():
     pygame.init()
     screen = pygame.display.set_mode((720, 720), pygame.RESIZABLE)
 
-    run_lidar(lidar, screen)
+    run_lidar(lidar, screen, map_scale=map_scale, disp_scale=disp_scale)
 
     lidar.stop_scanning()
     lidar.close()

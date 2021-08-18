@@ -7,14 +7,14 @@ PROGMEM const int IN3X = 9;
 PROGMEM const int IN4X = 10;
 PROGMEM const int ENBX = 8;
 PROGMEM const int ENAY = 3;
-PROGMEM const int IN1Y = 14;
-PROGMEM const int IN2Y = 15;
-PROGMEM const int IN3Y = 16;
-PROGMEM const int IN4Y = 17;
+PROGMEM const int IN1Y = 4;
+PROGMEM const int IN2Y = 5;
+PROGMEM const int IN3Y = 6;
+PROGMEM const int IN4Y = 7;
 PROGMEM const int ENBY = 2;
 
-PROGMEM const int DRL = 37;
-PROGMEM const int DIP = 39;
+PROGMEM const int DRL = A0;
+PROGMEM const int DIP = A1;
 
 #define SLAVE_ADDRESS 0x01
 
