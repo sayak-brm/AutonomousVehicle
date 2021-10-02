@@ -52,6 +52,6 @@ class SimulatedLidar(DummyLidar):
 
             t = np.radians(i)
             # Introduce normal error in measurement
-            r += np.random.normal(0, 0.5)
+            r += np.random.normal(0, 0.25)
             out.append((r, t))
         return out

@@ -30,12 +30,12 @@ if not simulation:
 APP.config["DEBUG"] = True
 
 spmat = SparseMatrix(0.5)
-x, y, t = 40, 40, 0
+x, y, t = 60, 50, 0
 running = True
-map_scale = 3
+map_scale = 4
 disp_scale = 10
 next_dir = "stop"
-dest_x, dest_y = 60, 10
+dest_x, dest_y = 85, 10
 visited = []
 
 opts = ""
@@ -109,6 +109,8 @@ def map_data(data, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
             if i < max_dist:
                 x = i * np.cos(t + np.radians(Ot))
                 y = i * np.sin(t + np.radians(Ot))
+                if spmat.get((Ox+x)//scale, (Oy+y)//scale) >= 0.8:
+                    break
                 v = spmat.get((Ox+x)//scale, (Oy+y)//scale)/2
                 spmat.update((Ox+x)//scale, (Oy+y)//scale, v)
         if r < max_dist:
