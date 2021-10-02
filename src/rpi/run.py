@@ -30,12 +30,12 @@ if not simulation:
 APP.config["DEBUG"] = True
 
 spmat = SparseMatrix(0.5)
-x, y, t = 60, 50, 0
+x, y, t = 245, 329, 0
 running = True
-map_scale = 4
+map_scale = 3
 disp_scale = 10
 next_dir = "stop"
-dest_x, dest_y = 85, 10
+dest_x, dest_y = 305, 217
 visited = []
 
 opts = ""
@@ -44,7 +44,7 @@ with open("src/rpi/params.json") as params:
 
 
 def a_star():
-    global x, y, map_scale
+    global x, y, map_scale, path
     if spmat.get(x//map_scale, y//map_scale) >= 0.75:
         return  # if source is occupied
     if spmat.get(dest_x//map_scale, dest_y//map_scale) >= 0.75:
@@ -72,7 +72,7 @@ def a_star():
     while front:
         total_cost, cost, pos, previous = front.pop()
 
-        if pos in visited or pos in scanned:
+        if pos in scanned:
             continue
         scanned.append(pos)
         back[pos] = previous
@@ -83,7 +83,7 @@ def a_star():
         for move in moves:
             new_pos = move(pos)
 
-            if new_pos not in visited and new_pos not in scanned and spmat.get(new_pos[0]//map_scale, new_pos[1]//map_scale) < 0.75:
+            if new_pos not in scanned and spmat.get(new_pos[0]//map_scale, new_pos[1]//map_scale) < 0.75:
                 new_cost = cost + map_scale
                 new_dist = math.hypot(
                     new_pos[0]//map_scale - dest_x//map_scale, new_pos[1]//map_scale - dest_y//map_scale)
@@ -129,9 +129,7 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
     global running, x, y, t, next_dir
     while running:
-        a_star()
-
-        if next_dir != "stop":
+        """ if next_dir != "stop":
             if next_dir == "left":
                 x -= map_scale
                 next_dir = 'stop'
@@ -160,7 +158,7 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
                 if event.key == pygame.K_e:
                     t += map_scale
             if event.type == pygame.QUIT:
-                running = False
+                running = False """
 
         if not simulation:
             lidar_data = lidar.get_data()
@@ -176,13 +174,26 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
 
         screen.fill((127, 127, 127))
 
+        a_star()
+
         for map_x in spmat.head.keys():
             for map_y in spmat.head[map_x].keys():
                 col = int(255*(1-spmat.head[map_x][map_y]))
                 draw_rect(screen, int(map_x + b_x), int(map_y + b_y),
                           (col, col, col), scale=disp_scale)
 
+        for v_x, v_y in visited:
+            draw_rect(screen, v_x//map_scale + b_x, v_y//map_scale +
+                      b_y, (255, 255, 0), scale=disp_scale)
+
+        for p_x, p_y in path:
+            draw_rect(screen, p_x//map_scale + b_x, p_y//map_scale +
+                      b_y, (255, 127, 0), scale=disp_scale)
+
         draw_rect(screen, c_x, c_y, (0, 255, 0), scale=disp_scale)
+
+        draw_rect(screen, dest_x//map_scale + b_x, dest_y//map_scale +
+                  b_y, (255, 0, 0), scale=disp_scale)
 
         pygame.display.flip()
 
@@ -263,7 +274,7 @@ def init_lidar():
     if not simulation:
         lidar = Lidar()
     else:
-        map_image = img.imread("src/rpi/sensors/maps/1.png")[:, :, 0]
+        map_image = img.imread("src/rpi/sensors/maps/2.png")[:, :, 0]
         lidar = Lidar(map_image)
 
     lidar.start_scanning()
