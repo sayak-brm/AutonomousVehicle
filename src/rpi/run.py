@@ -4,6 +4,7 @@ from flask_restful import Resource
 from flask_restful import Api
 from flask import Flask, render_template, Response
 import json
+import math
 import matplotlib.image as img
 import numpy as np
 import pygame
@@ -33,11 +34,71 @@ x, y, t = 40, 40, 0
 running = True
 map_scale = 3
 disp_scale = 10
-manual_dir = "stop"
+next_dir = "stop"
+dest_x, dest_y = 60, 10
+visited = []
 
 opts = ""
 with open("src/rpi/params.json") as params:
     opts = json.loads(params.read())
+
+
+def a_star():
+    global x, y, map_scale
+    if spmat.get(x//map_scale, y//map_scale) >= 0.75:
+        return  # if source is occupied
+    if spmat.get(dest_x//map_scale, dest_y//map_scale) >= 0.75:
+        return  # if dest is occupied
+    if x//map_scale == dest_x//map_scale and y//map_scale == dest_y//map_scale:
+        return  # dest reached
+
+    # front = (total estimated cost to goal, total cost from start to node, node, previous node)
+    front = [(
+        math.hypot(x//map_scale == dest_x//map_scale,
+                   y//map_scale == dest_y//map_scale),
+        0,
+        (x, y),
+        None
+    )]
+    back = {}
+    scanned = []
+    moves = [
+        lambda pos: (pos[0] - map_scale, pos[1]),
+        lambda pos: (pos[0] + map_scale, pos[1]),
+        lambda pos: (pos[0], pos[1] - map_scale),
+        lambda pos: (pos[0], pos[1] + map_scale)
+    ]
+
+    while front:
+        total_cost, cost, pos, previous = front.pop()
+
+        if pos in visited or pos in scanned:
+            continue
+        scanned.append(pos)
+        back[pos] = previous
+
+        if pos[0]//map_scale == dest_x//map_scale and pos[1]//map_scale == dest_y//map_scale:
+            break
+
+        for move in moves:
+            new_pos = move(pos)
+
+            if new_pos not in visited and new_pos not in scanned and spmat.get(new_pos[0]//map_scale, new_pos[1]//map_scale) < 0.75:
+                new_cost = cost + map_scale
+                new_dist = math.hypot(
+                    new_pos[0]//map_scale - dest_x//map_scale, new_pos[1]//map_scale - dest_y//map_scale)
+                front.append((new_dist, new_cost, new_pos, pos))
+        front.sort(key=lambda tup: tup[0] + tup[1], reverse=True)
+
+    path = []
+    if pos[0]//map_scale == dest_x//map_scale and pos[1]//map_scale == dest_y//map_scale:
+        while pos:
+            path.append(pos)
+            pos = back[pos]
+        path.reverse()
+        visited.append(path[0])
+        x = path[1][0]
+        y = path[1][1]
 
 
 def map_data(data, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
@@ -64,17 +125,23 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 
 
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
-    global running, x, y, t
+    global running, x, y, t, next_dir
     while running:
-        if manual_dir != "stop":
-            if manual_dir == "left":
+        a_star()
+
+        if next_dir != "stop":
+            if next_dir == "left":
                 x -= map_scale
-            if manual_dir == "right":
+                next_dir = 'stop'
+            if next_dir == "right":
                 x += map_scale
-            if manual_dir == "front":
+                next_dir = 'stop'
+            if next_dir == "front":
                 y -= map_scale
-            if manual_dir == "back":
+                next_dir = 'stop'
+            if next_dir == "back":
                 y += map_scale
+                next_dir = 'stop'
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -159,11 +226,11 @@ API.add_resource(Gears, "/api/gear/<number>") """
 class Drive(Resource):
     @staticmethod
     def post(direction):
-        global manual_dir
+        global next_dir
         if direction in opts["dirs"]:
             if not simulation:
                 I2C.send_write([6, opts["dirs"][direction]])
-            manual_dir = direction
+            next_dir = direction
             return {"success": True}
         print("ERR: Incorrect Drive Direction")
         return {"success": False}
