@@ -1,3 +1,6 @@
+import math
+
+
 class SparseMatrix:
     """
     Sparse matrix data structure with support for negative indexes.
@@ -48,3 +51,11 @@ class SparseMatrix:
             return self.head[x][y]
         else:
             return self.default
+
+    def get_max_dist(self, Ox, Oy):
+        max_coords = (Ox, Oy)
+        for x in self.head.keys():
+            for y in self.head[x].keys():
+                max_coords = max(max_coords, (x, y),
+                                 key=lambda tup: math.hypot(tup[0]-Ox, tup[1]-Oy))
+        return math.hypot(max_coords[0]-Ox, max_coords[1]-Oy)

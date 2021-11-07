@@ -1,5 +1,10 @@
 #! /usr/bin/python3
 
+"""
+1) Add Dynamic targeting based on map size.
+2) Add path caching.
+"""
+
 from flask_restful import Resource
 from flask_restful import Api
 from flask import Flask, render_template, Response
@@ -30,13 +35,17 @@ if not simulation:
 APP.config["DEBUG"] = True
 
 spmat = SparseMatrix(0.5)
+main_loop = 0
+loop_interval = 3
 x, y, t = 245, 329, 0
 running = True
 map_scale = 3
 disp_scale = 10
 next_dir = "stop"
-dest_x, dest_y = 305, 217
+dest_x, dest_y = 262, 117
+target = (x, y)
 visited = []
+path = []
 
 opts = ""
 with open("src/rpi/params.json") as params:
@@ -47,15 +56,15 @@ def a_star():
     global x, y, map_scale, path
     if spmat.get(x//map_scale, y//map_scale) >= 0.75:
         return  # if source is occupied
-    if spmat.get(dest_x//map_scale, dest_y//map_scale) >= 0.75:
+    if spmat.get(target[0]//map_scale, target[1]//map_scale) >= 0.75:
         return  # if dest is occupied
-    if x//map_scale == dest_x//map_scale and y//map_scale == dest_y//map_scale:
+    if x//map_scale == target[0]//map_scale and y//map_scale == target[1]//map_scale:
         return  # dest reached
 
     # front = (total estimated cost to goal, total cost from start to node, node, previous node)
     front = [(
-        math.hypot(x//map_scale == dest_x//map_scale,
-                   y//map_scale == dest_y//map_scale),
+        math.hypot(x//map_scale == target[0]//map_scale,
+                   y//map_scale == target[1]//map_scale),
         0,
         (x, y),
         None
@@ -70,14 +79,14 @@ def a_star():
     ]
 
     while front:
-        total_cost, cost, pos, previous = front.pop()
+        _, cost, pos, previous = front.pop()
 
         if pos in scanned:
             continue
         scanned.append(pos)
         back[pos] = previous
 
-        if pos[0]//map_scale == dest_x//map_scale and pos[1]//map_scale == dest_y//map_scale:
+        if pos[0]//map_scale == target[0]//map_scale and pos[1]//map_scale == target[1]//map_scale:
             break
 
         for move in moves:
@@ -86,20 +95,30 @@ def a_star():
             if new_pos not in scanned and spmat.get(new_pos[0]//map_scale, new_pos[1]//map_scale) < 0.75:
                 new_cost = cost + map_scale
                 new_dist = math.hypot(
-                    new_pos[0]//map_scale - dest_x//map_scale, new_pos[1]//map_scale - dest_y//map_scale)
+                    new_pos[0]//map_scale - target[0]//map_scale, new_pos[1]//map_scale - target[1]//map_scale)
                 front.append((new_dist, new_cost, new_pos, pos))
         front.sort(key=lambda tup: tup[0] + tup[1], reverse=True)
 
     path = []
-    if pos[0]//map_scale == dest_x//map_scale and pos[1]//map_scale == dest_y//map_scale:
+    if pos[0]//map_scale == target[0]//map_scale and pos[1]//map_scale == target[1]//map_scale:
         while pos:
             path.append(pos)
             pos = back[pos]
-        path.reverse()
-        visited.append(path[0])
-        x = path[1][0]
-        y = path[1][1]
+        # path.reverse()
+        # visited.append(path[0])
+        # x = path[1][0]
+        # y = path[1][1]
 
+
+def get_target():
+    global spmat, map_scale, target
+    dist = math.hypot(dest_x//map_scale - x//map_scale, dest_y//map_scale - y//map_scale)
+    dist_t = spmat.get_max_dist(x//map_scale, y//map_scale) + 1
+    if dist<dist_t:
+        target = (dest_x, dest_y)
+        return
+    t = dist_t/dist
+    target = ((1-t)*x+t*dest_x, (1-t)*y+t*dest_y)
 
 def map_data(data, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
     v = spmat.get(Ox//scale, Oy//scale)/2
@@ -127,7 +146,7 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 
 
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
-    global running, x, y, t, next_dir
+    global running, x, y, t, next_dir, main_loop, loop_interval
     while running:
         """ if next_dir != "stop":
             if next_dir == "left":
@@ -164,7 +183,7 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
             lidar_data = lidar.get_data()
         else:
             lidar_data = lidar.get_data(x, y, t)
-        map_data(lidar_data, x, y, t, max_dist=100, scale=map_scale)
+        map_data(lidar_data, x, y, t, max_dist=50, scale=map_scale)
 
         w, h = screen.get_size()
         c_x = w//disp_scale//2
@@ -174,7 +193,13 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
 
         screen.fill((127, 127, 127))
 
-        a_star()
+        main_loop = (main_loop + 1) % loop_interval
+        if main_loop == 0:
+            get_target()
+            a_star()
+        if path:
+            visited.append(path.pop())
+            if path: x, y = path[-1]
 
         for map_x in spmat.head.keys():
             for map_y in spmat.head[map_x].keys():
