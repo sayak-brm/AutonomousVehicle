@@ -39,10 +39,12 @@ main_loop = 0
 loop_interval = 3
 x, y, t = 245, 329, 0
 running = True
+manual = False
 map_scale = 3
 disp_scale = 10
 next_dir = "stop"
 dest_x, dest_y = 262, 117
+
 target = (x, y)
 visited = []
 path = []
@@ -112,13 +114,15 @@ def a_star():
 
 def get_target():
     global spmat, map_scale, target
-    dist = math.hypot(dest_x//map_scale - x//map_scale, dest_y//map_scale - y//map_scale)
+    dist = math.hypot(dest_x//map_scale - x//map_scale,
+                      dest_y//map_scale - y//map_scale)
     dist_t = spmat.get_max_dist(x//map_scale, y//map_scale) + 1
-    if dist<dist_t:
+    if dist < dist_t:
         target = (dest_x, dest_y)
         return
     t = dist_t/dist
     target = ((1-t)*x+t*dest_x, (1-t)*y+t*dest_y)
+
 
 def map_data(data, Ox=0, Oy=0, Ot=0, max_dist=np.inf, scale=3):
     v = spmat.get(Ox//scale, Oy//scale)/2
@@ -146,9 +150,9 @@ def draw_rect(screen, map_x, map_y, col, scale=10):
 
 
 def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
-    global running, x, y, t, next_dir, main_loop, loop_interval
+    global running, x, y, t, next_dir, main_loop, loop_interval, dest_x, dest_y, manual, path
     while running:
-        """ if next_dir != "stop":
+        if manual and next_dir != "stop":
             if next_dir == "left":
                 x -= map_scale
                 next_dir = 'stop'
@@ -163,21 +167,32 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
                 next_dir = 'stop'
 
         for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONUP:
+                clicked = pygame.mouse.get_pos()
+                w, h = screen.get_size()
+                c_x = w//disp_scale//2
+                c_y = h//disp_scale//2
+                dest_x = x + (clicked[0]//disp_scale - c_x) * map_scale
+                dest_y = y + (clicked[1]//disp_scale - c_y) * map_scale
+
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a:
-                    x -= map_scale
-                if event.key == pygame.K_d:
-                    x += map_scale
-                if event.key == pygame.K_w:
-                    y -= map_scale
-                if event.key == pygame.K_s:
-                    y += map_scale
-                if event.key == pygame.K_q:
-                    t -= map_scale
-                if event.key == pygame.K_e:
-                    t += map_scale
+                if event.key == pygame.K_m:
+                    manual = not manual
+                if manual:
+                    if event.key == pygame.K_a:
+                        x -= map_scale
+                    if event.key == pygame.K_d:
+                        x += map_scale
+                    if event.key == pygame.K_w:
+                        y -= map_scale
+                    if event.key == pygame.K_s:
+                        y += map_scale
+                    if event.key == pygame.K_q:
+                        t -= map_scale
+                    if event.key == pygame.K_e:
+                        t += map_scale
             if event.type == pygame.QUIT:
-                running = False """
+                running = False
 
         if not simulation:
             lidar_data = lidar.get_data()
@@ -197,9 +212,12 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
         if main_loop == 0:
             get_target()
             a_star()
+        if manual:
+            path = []
         if path:
             visited.append(path.pop())
-            if path: x, y = path[-1]
+            if path:
+                x, y = path[-1]
 
         for map_x in spmat.head.keys():
             for map_y in spmat.head[map_x].keys():
@@ -223,15 +241,24 @@ def run_lidar(lidar, screen, map_scale=3, disp_scale=10):
         pygame.display.flip()
 
 
-""" class Drive(Resource):
+def drive(direction):
+    if not simulation:
+        I2C.send_write([6, opts["dirs"][direction]])
+
+
+class Drive(Resource):
     @staticmethod
     def post(direction):
         if direction in opts["dirs"]:
-            if not simulation:
-                I2C.send_write([6, opts["dirs"][direction]])
+            drive(direction)
             return {"success": True}
         print("ERR: Incorrect Drive Direction")
         return {"success": False}
+
+
+def lights(light, state):
+    if not simulation:
+        I2C.send_write([2, opts["lights"][light], opts["relay_ao"][state]])
 
 
 class Lights(Resource):
@@ -239,26 +266,28 @@ class Lights(Resource):
     def post(light, state):
         if light in opts["lights"]:
             if state in opts["relay_ao"]:
-                if not simulation:
-                    I2C.send_write(
-                        [2, opts["lights"][light], opts["relay_ao"][state]])
+                lights(light, state)
                 return {"success": True}
         return {"success": False}
+
+
+def gears(number):
+    if not simulation:
+        I2C.send_write([7, opts["gears"][number]])
 
 
 class Gears(Resource):
     @staticmethod
     def post(number):
         if number in opts["gears"]:
-            if not simulation:
-                I2C.send_write([7, opts["gears"][number]])
+            gears(number)
             return {"success": True}
         return {"success": False}
 
 
-API.add_resource(Drive, "/api/drive/<direction>")
-API.add_resource(Lights, "/api/lights/<light>/<state>")
-API.add_resource(Gears, "/api/gear/<number>") """
+# API.add_resource(Drive, "/api/drive/<direction>")
+# API.add_resource(Lights, "/api/lights/<light>/<state>")
+# API.add_resource(Gears, "/api/gear/<number>")
 
 
 class Drive(Resource):
